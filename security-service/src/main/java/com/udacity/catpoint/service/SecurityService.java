@@ -10,6 +10,7 @@ import com.udacity.catpoint.data.Sensor;
 import java.awt.image.BufferedImage;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.ArrayList;
 
 /**
  * Service that receives information about changes to the security system. Responsible for
@@ -37,17 +38,24 @@ public class SecurityService {
      */
     public void setArmingStatus(ArmingStatus armingStatus) {
 
-        if(armingStatus == ArmingStatus.DISARMED) {
+        if (armingStatus == ArmingStatus.DISARMED) {
             setAlarmStatus(AlarmStatus.NO_ALARM);
         }
 
-        securityRepository.getSensors()
-                .forEach(sensor -> {
-                    sensor.setActive(false);
-                    securityRepository.updateSensor(sensor);
-                });
+        // Reset all sensors when system is armed
+        if (armingStatus == ArmingStatus.ARMED_HOME ||
+                armingStatus == ArmingStatus.ARMED_AWAY) {
 
-        if(armingStatus == ArmingStatus.ARMED_HOME && catDetected) {
+            // Create copy to avoid ConcurrentModificationException
+            new ArrayList<>(securityRepository.getSensors())
+                    .forEach(sensor -> {
+                        sensor.setActive(false);
+                        securityRepository.updateSensor(sensor);
+                    });
+        }
+
+        // If system armed home and cat detected -> alarm
+        if (armingStatus == ArmingStatus.ARMED_HOME && catDetected) {
             setAlarmStatus(AlarmStatus.ALARM);
         }
 
@@ -117,11 +125,9 @@ public class SecurityService {
      * Internal method for updating the alarm status when a sensor has been deactivated
      */
     private void handleSensorDeactivated() {
-        switch(securityRepository.getAlarmStatus()) {
-            case PENDING_ALARM -> setAlarmStatus(AlarmStatus.NO_ALARM);
-            case ALARM -> setAlarmStatus(AlarmStatus.PENDING_ALARM);
-            default -> {
-            }
+
+        if (securityRepository.getAlarmStatus() == AlarmStatus.PENDING_ALARM) {
+            setAlarmStatus(AlarmStatus.NO_ALARM);
         }
     }
 

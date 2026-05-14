@@ -7,25 +7,30 @@ import com.udacity.catpoint.data.Sensor;
 import com.udacity.catpoint.data.SensorType;
 import com.udacity.image.service.ImageService;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 public class SecurityServiceTest {
 
-    private SecurityService securityService;
+    @Mock
     private SecurityRepository securityRepository;
+
+    @Mock
     private ImageService imageService;
 
-    @BeforeEach
-    void setup() {
-        securityRepository = Mockito.mock(SecurityRepository.class);
-        imageService = Mockito.mock(ImageService.class);
-
-        securityService = new SecurityService(securityRepository, imageService);
-    }
+    @InjectMocks
+    private SecurityService securityService;
 
     @Test
     void alarmGoesPendingWhenSensorActivated() {
@@ -34,6 +39,25 @@ public class SecurityServiceTest {
 
         when(securityRepository.getArmingStatus())
                 .thenReturn(ArmingStatus.ARMED_HOME);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.NO_ALARM);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        Mockito.verify(securityRepository)
+                .setAlarmStatus(AlarmStatus.PENDING_ALARM);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ArmingStatus.class,
+            names = {"ARMED_HOME", "ARMED_AWAY"})
+    void sensorActivatedWhenSystemArmedSetsPendingAlarm(ArmingStatus armingStatus) {
+
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        when(securityRepository.getArmingStatus())
+                .thenReturn(armingStatus);
 
         when(securityRepository.getAlarmStatus())
                 .thenReturn(AlarmStatus.NO_ALARM);
@@ -105,20 +129,19 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.ALARM);
     }
+
     @Test
     void inactiveSensorDoesNotChangeAlarmState() {
 
         Sensor sensor = new Sensor("Door", SensorType.DOOR);
         sensor.setActive(false);
 
-        when(securityRepository.getAlarmStatus())
-                .thenReturn(AlarmStatus.NO_ALARM);
-
         securityService.changeSensorActivationStatus(sensor, false);
 
         Mockito.verify(securityRepository, Mockito.never())
                 .setAlarmStatus(Mockito.any());
     }
+
     @Test
     void catDetectedWhenArmedHomeSetsAlarm() {
 
@@ -133,6 +156,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.ALARM);
     }
+
     @Test
     void noCatSetsNoAlarmWhenNoSensorsActive() {
 
@@ -144,6 +168,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
+
     @Test
     void disarmingSystemSetsNoAlarm() {
 
@@ -152,6 +177,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
+
     @Test
     void armedHomeWithCatSetsAlarm() {
 
@@ -166,6 +192,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.ALARM);
     }
+
     @Test
     void activeAlarmDoesNotChangeWhenSensorDeactivated() {
 
@@ -180,6 +207,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository, Mockito.never())
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
+
     @Test
     void armingSystemResetsAllSensors() {
 
@@ -188,6 +216,7 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository)
                 .setArmingStatus(ArmingStatus.ARMED_HOME);
     }
+
     @Test
     void catRemovedButSensorActiveKeepsAlarm() {
 
@@ -205,9 +234,4 @@ public class SecurityServiceTest {
         Mockito.verify(securityRepository, Mockito.never())
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
-
-
-
-
-
 }
